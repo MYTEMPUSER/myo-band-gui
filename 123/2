@@ -1,0 +1,138 @@
+#!/usr/bin/env python
+
+import roslib
+import sys
+import rospy
+import cv2
+from sensor_msgs.msg import Image
+from tello_msgs.srv import TelloCommand
+from cv_bridge import CvBridge, CvBridgeError
+
+from utils import detector_utils as detector_utils
+import tensorflow as tf
+import multiprocessing
+from multiprocessing import Queue, Pool
+import time
+from utils.detector_utils import WebcamVideoStream
+import datetime
+import argparse
+
+frame_processed = 0
+score_thresh = 0.2
+args = params()
+
+class params:
+    def __init__(self):
+        self.queue_size = 5
+        self.video_source = 0
+        self.width = 640
+        self.height = 480
+        self.num_hands = 2
+        self.fps = 1
+        self.display = 1
+        self.num_workers = 4
+
+args = params()
+
+class image_converter:
+    
+
+    def __init__(self):
+        self.start_init = True
+        self.image_pub = rospy.Publisher("image_topic",Image, queue_size=10)
+        rospy.wait_for_service("cmd")
+        self.bridge = CvBridge()
+        self.image_sub = rospy.Subscriber("/camera/image/image_raw",Image,self.callback)
+        self.cap_params = {}
+        self.input_q = Queue(maxsize=args.queue_size)
+        self.output_q = Queue(maxsize=args.queue_size)
+
+        cmd = rospy.ServiceProxy('cmd', TelloCommand)
+        try:
+            cmd("takeoff", [])
+            cmd("land", [])
+        except rospy.ServiceException as e:
+            rospy.logerr(e)
+        return
+
+    def worker(input_q, output_q, cap_params, frame_processed):
+        print(">> loading frozen model for worker")
+        detection_graph, sess = detector_utils.load_inference_graph()
+        sess = tf.Session(graph=detection_graph)
+        while True:
+            frame = input_q.get()
+            if (frame is not None):
+                boxes, scores = detector_utils.detect_objects(
+                frame, detection_graph, sess)
+                detector_utils.draw_box_on_image(
+                cap_params['num_hands_detect'], cap_params["score_thresh"],
+                scores, boxes, cap_params['im_width'], cap_params['im_height'],
+                frame)
+                output_q.put(frame)
+                frame_processed += 1
+            else:
+                output_q.put(frame)
+        sess.close()
+
+    def callback(self,data):
+        try:
+            frame = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+
+        if start_init:
+            self.start_init = False
+            (rows,cols,channels) = frame.shape
+            print(rows, cols)
+            self.frame_processed = 0
+            self.cap_params['im_width'], cap_params['im_height'] = cols, rows
+            self.cap_params['score_thresh'] = score_thresh
+            self.cap_params['num_hands_detect'] = args.num_hands
+            self.pool = Pool(args.num_workers, worker, (self.input_q, self.output_q, self.cap_params, self.frame_processed))
+            self.start_time = datetime.datetime.now()
+            self.num_frames = 0
+            self.index = 0
+            cv2.namedWindow('Multi-Threaded Detection', cv2.WINDOW_NORMAL)
+
+        self.index += 1
+        self.input_q.put(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+
+        output_frame = output_q.get()
+        output_frame = cv2.cvtColor(output_frame, cv2.COLOR_RGB2BGR)
+
+        elapsed_time = (datetime.datetime.now() - start_time).total_seconds()
+        self.num_frames += 1
+        fps = num_frames / elapsed_time
+
+        if (output_frame is not None):
+            if (args.display > 0):
+                if (args.fps > 0):
+                    detector_utils.draw_fps_on_image("FPS : " + str(int(fps)),
+                                                     output_frame)
+                cv2.imshow('Multi-Threaded Detection', output_frame)
+            else:
+                if (num_frames == 400):
+                    num_frames = 0
+                    start_time = datetime.datetime.now()
+                else:
+                    print("frames processed: ", index, "elapsed time: ",
+                          elapsed_time, "fps: ", str(int(fps)))
+
+        try:
+            self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "bgr8"))
+        except CvBridgeError as e:
+            print(e)
+
+
+def main(args):
+    ic = image_converter()
+    rospy.init_node('image_converter', anonymous=True)
+
+    try:
+        rospy.spin()
+    except KeyboardInterrupt:
+        rospy.logerror("Shutting down")
+    cv2.destroyAllWindows()
+
+if __name__ == '__main__':
+    main(sys.argv)
