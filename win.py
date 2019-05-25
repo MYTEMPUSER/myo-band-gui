@@ -73,9 +73,9 @@ class MyoWindow (QMainWindow, gui.Ui_MainWindow):
 
   def clickedShowCharts (self):
     self.LP = liveChart.live_plot()
-    time.sleep(0.1)
     self.LP.show_plots()
-    self.LP.update_plots()
+    self.timer.timeout.connect(self.LP.update_plots)
+    self.timer.start(2000)
 
   def clickedStopRecording (self):
     self.startRecordingButton.setEnabled(True)

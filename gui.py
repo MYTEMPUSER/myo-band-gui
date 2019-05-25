@@ -52,6 +52,8 @@ class Ui_MainWindow (object):
     self.showPlotButton.setGeometry(QtCore.QRect(self.padding  + self.buttonsWidth + self.offset, self.padding + 2 * (self.buttonsHeight + 5), self.buttonsWidth, self.buttonsHeight))
     self.showPlotButton.setObjectName("showPlotButton");
 
+    self.timer = QtCore.QTimer()
+
     self.fileNameLineEdit.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold))
     self.statusLabel.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold))
     self.handPoseLabel.setFont(QtGui.QFont("Times", 12, QtGui.QFont.Bold))

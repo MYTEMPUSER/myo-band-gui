@@ -34,6 +34,7 @@ class live_plot ():
 		self.flag_need_close = True
 
 	def show_plots(self):
+		print("FIRST SHOW")
 		self.flag_need_close = False
 		self.fig1.canvas.draw()
 		plt.show(block=False)
@@ -47,18 +48,17 @@ class live_plot ():
 
 
 	def update_plots(self):
-		while not self.flag_need_close:
-			try:
-				for ind, line in enumerate(self.lines):
-					if len(self.y[ind]) > 2000:
-						self.y[ind] = self.y[ind][-2000:] 
-					line.set_ydata(self.y[ind])
-					line.set_xdata(range(len(self.y[ind])))
-					self.axs[ind].relim()
-					self.axs[ind].autoscale_view(True,True,False)
-				self.fig1.canvas.draw()
-				plt.pause(1)
-			except:
-				pass
+		try:
+			for ind, line in enumerate(self.lines):
+				if len(self.y[ind]) > 2000:
+					self.y[ind] = self.y[ind][-2000:] 
+				line.set_ydata(self.y[ind])
+				line.set_xdata(range(len(self.y[ind])))
+				self.axs[ind].relim()
+				self.axs[ind].autoscale_view(True,True,False)
+			self.fig1.canvas.draw()
+			plt.pause(1)
+		except:
+			pass
 		
 			

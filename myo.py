@@ -394,7 +394,7 @@ def procEmg (emg, moving, times = []):
 	flagSave = True;
 	dateTime = time.ctime();
 	secondTime = time.time();
-	print ("{};{};{};{}". format (dateTime, secondTime, poseArm, emg));
+	#print ("{};{};{};{}". format (dateTime, secondTime, poseArm, emg));
 	lastEmg = emg
 	writeTable. addEmg (dateTime, secondTime, poseArm, emg);
 
